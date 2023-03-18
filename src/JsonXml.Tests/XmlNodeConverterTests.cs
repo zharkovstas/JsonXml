@@ -24,6 +24,7 @@ public class XmlNodeConverterTests
     [TestCase(@"<root first=""1"" second=""2""/>")]
     [TestCase("<root><child/></root>")]
     [TestCase("<root><first/><second/></root>")]
+    [TestCase("<root><element/><element/></root>")]
     [TestCase("<root><element/><!-- Comment --><element/></root>")]
     [TestCase(@"<root attribute=""value"">Text</root>")]
     [TestCase("<root>Text<child/></root>")]
@@ -44,6 +45,32 @@ public class XmlNodeConverterTests
         var actual = JsonSerializer.Serialize(document, CreateOptions());
 
         Assert.That(actual, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Read_GivenNull_ReturnsNull()
+    {
+        var actual = JsonSerializer.Deserialize<XmlNode>("null", CreateOptions());
+
+        Assert.That(actual, Is.Null);
+    }
+
+    [TestCase("{}")]
+    [TestCase(@"{""root"":null}")]
+    [TestCase(@"{""root"":""""}")]
+    [TestCase(@"{""root"":""Text""}")]
+    [TestCase(@"{""root"":{}}")]
+    [TestCase(@"{""root"":{""child"":null}}")]
+    [TestCase(@"{""root"":{""@attribute"": ""value""}}")]
+    [TestCase(@"{""root"":{""first"":null,""second"":null}}")]
+    public void Read_WorksAsJsonNet(string json)
+    {
+        var expected = Newtonsoft.Json.JsonConvert.DeserializeXmlNode(json);
+
+        var actual = JsonSerializer.Deserialize<XmlNode>(json, CreateOptions());
+
+        Assert.That(actual, Is.Not.Null);
+        Assert.That(actual!.OuterXml, Is.EqualTo(expected!.OuterXml));
     }
 
     private static JsonSerializerOptions CreateOptions()
