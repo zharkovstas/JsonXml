@@ -6,7 +6,7 @@ namespace JsonXml.Tests;
 public class XmlNodeConverterTests
 {
     [Test]
-    public void Write_GivenNull_WorksAsJsonNet()
+    public void Write_GivenNull_WorksLikeJsonNet()
     {
         var expected = Newtonsoft.Json.JsonConvert.SerializeXmlNode((XmlNode?)null);
 
@@ -19,6 +19,9 @@ public class XmlNodeConverterTests
     [TestCase(@"<?xml version=""1.0"" encoding=""UTF-8""?><root/>")]
     [TestCase("<root></root>")]
     [TestCase("<root>Text</root>")]
+    [TestCase("<root>123</root>")]
+    [TestCase("<root>true</root>")]
+    [TestCase("<root>false</root>")]
     [TestCase("<root><!-- Comment --></root>")]
     [TestCase(@"<root attribute=""value""/>")]
     [TestCase(@"<root first=""1"" second=""2""/>")]
@@ -35,7 +38,7 @@ public class XmlNodeConverterTests
     [TestCase("<root>&amp;&lt;&gt;&quot;'</root>")]
     [TestCase("<root><?pi ?></root>")]
     [TestCase(@"<!DOCTYPE root SYSTEM ""some.ent""><root></root>")]
-    public void Write_WorksAsJsonNet(string xml)
+    public void Write_WorksLikeJsonNet(string xml)
     {
         var document = new XmlDocument();
         document.LoadXml(xml);
@@ -60,10 +63,18 @@ public class XmlNodeConverterTests
     [TestCase(@"{""root"":""""}")]
     [TestCase(@"{""root"":""Text""}")]
     [TestCase(@"{""root"":{}}")]
+    [TestCase(@"{""root"":true}")]
+    [TestCase(@"{""root"":false}")]
+    [TestCase(@"{""root"":123}")]
     [TestCase(@"{""root"":{""child"":null}}")]
-    [TestCase(@"{""root"":{""@attribute"": ""value""}}")]
+    [TestCase(@"{""root"":{""@attribute"":null}}")]
+    [TestCase(@"{""root"":{""@attribute"":""""}}")]
+    [TestCase(@"{""root"":{""@attribute"":""Text""}}")]
+    [TestCase(@"{""root"":{""@attribute"":true}}")]
+    [TestCase(@"{""root"":{""@attribute"":false}}")]
     [TestCase(@"{""root"":{""first"":null,""second"":null}}")]
-    public void Read_WorksAsJsonNet(string json)
+    [TestCase(@"{""root"":{""element"":[null,null]}}")]
+    public void Read_WorksLikeJsonNet(string json)
     {
         var expected = Newtonsoft.Json.JsonConvert.DeserializeXmlNode(json);
 

@@ -19,29 +19,56 @@ namespace JsonXml
                 throw new InvalidOperationException("Must be an object");
             }
 
-            return ReadRootObject(ref reader);
+            var document = new XmlDocument();
+            ReadRootObject(ref reader, document);
+            return document;
         }
 
-        private XmlDocument ReadRootObject(ref Utf8JsonReader reader)
+        private static void ReadRootObject(ref Utf8JsonReader reader, XmlDocument document)
         {
-            var document = new XmlDocument();
             while (reader.Read())
             {
                 switch (reader.TokenType)
                 {
                     case JsonTokenType.PropertyName:
-                        var element = document.CreateElement(reader.GetString());
-                        document.AppendChild(element);
-                        ReadPropertyValue(ref reader, document, element);
+                        ReadPropertyValue(ref reader, document, document, reader.GetString());
                         break;
                     case JsonTokenType.EndObject:
-                        return document;
+                        return;
                 }
             }
-            return document;
         }
 
-        private void ReadObject(ref Utf8JsonReader reader, XmlDocument document, XmlNode currentNode)
+        private static void ReadPropertyValue(ref Utf8JsonReader reader, XmlDocument document, XmlNode currentNode, string propertyName)
+        {
+            while (reader.Read())
+            {
+                switch (reader.TokenType)
+                {
+                    case JsonTokenType.Null:
+                    case JsonTokenType.String:
+                    case JsonTokenType.Number:
+                    case JsonTokenType.True:
+                    case JsonTokenType.False:
+                        var elementWithSingleValue = document.CreateElement(propertyName);
+                        ReadPrimitiveValue(ref reader, document, elementWithSingleValue);
+                        currentNode.AppendChild(elementWithSingleValue);
+                        return;
+                    case JsonTokenType.StartObject:
+                        var element = document.CreateElement(propertyName);
+                        ReadObject(ref reader, document, element);
+                        currentNode.AppendChild(element);
+                        return;
+                    case JsonTokenType.StartArray:
+                        ReadArrayPropertyValue(ref reader, document, currentNode, propertyName);
+                        return;
+                    default:
+                        break;
+                }
+            }
+        }
+
+        private static void ReadObject(ref Utf8JsonReader reader, XmlDocument document, XmlNode currentNode)
         {
             while (reader.Read())
             {
@@ -52,14 +79,13 @@ namespace JsonXml
                         if (propertyName.StartsWith("@"))
                         {
                             var attribute = document.CreateAttribute(propertyName.Substring(1));
+                            reader.Read();
+                            ReadPrimitiveValue(ref reader, document, attribute);
                             currentNode.Attributes.Append(attribute);
-                            ReadPropertyValue(ref reader, document, attribute);
                         }
                         else
                         {
-                            var element = document.CreateElement(propertyName);
-                            currentNode.AppendChild(element);
-                            ReadPropertyValue(ref reader, document, element);
+                            ReadPropertyValue(ref reader, document, currentNode, propertyName);
                         }
                         break;
                     case JsonTokenType.EndObject:
@@ -70,26 +96,54 @@ namespace JsonXml
             }
         }
 
-        private void ReadPropertyValue(
-            ref Utf8JsonReader reader,
-            XmlDocument document,
-            XmlNode currentNode)
+        private static void ReadArrayPropertyValue(ref Utf8JsonReader reader, XmlDocument document, XmlNode currentNode, string propertyName)
         {
             while (reader.Read())
             {
                 switch (reader.TokenType)
                 {
                     case JsonTokenType.Null:
-                        return;
                     case JsonTokenType.String:
-                        currentNode.AppendChild(document.CreateTextNode(reader.GetString()));
-                        return;
+                    case JsonTokenType.Number:
+                    case JsonTokenType.True:
+                    case JsonTokenType.False:
+                        var elementWithSingleValue = document.CreateElement(propertyName);
+                        ReadPrimitiveValue(ref reader, document, elementWithSingleValue);
+                        currentNode.AppendChild(elementWithSingleValue);
+                        break;
                     case JsonTokenType.StartObject:
-                        ReadObject(ref reader, document, currentNode);
+                        var element = document.CreateElement(propertyName);
+                        ReadObject(ref reader, document, element);
+                        currentNode.AppendChild(element);
+                        break;
+                    case JsonTokenType.EndArray:
                         return;
                     default:
                         break;
                 }
+            }
+        }
+
+        private static void ReadPrimitiveValue(ref Utf8JsonReader reader, XmlDocument document, XmlNode currentNode)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.Null:
+                    return;
+                case JsonTokenType.String:
+                    currentNode.AppendChild(document.CreateTextNode(reader.GetString()));
+                    return;
+                case JsonTokenType.Number:
+                    currentNode.AppendChild(document.CreateTextNode(reader.GetInt64().ToString()));
+                    return;
+                case JsonTokenType.True:
+                    currentNode.AppendChild(document.CreateTextNode("true"));
+                    return;
+                case JsonTokenType.False:
+                    currentNode.AppendChild(document.CreateTextNode("false"));
+                    return;
+                default:
+                    return;
             }
         }
     }

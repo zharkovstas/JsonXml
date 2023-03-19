@@ -12,7 +12,7 @@ namespace JsonXml
             WriteRecursively(writer, value, writePropertyName: true);
         }
 
-        private void WriteRecursively(Utf8JsonWriter writer, XmlNode value, bool writePropertyName)
+        private static void WriteRecursively(Utf8JsonWriter writer, XmlNode value, bool writePropertyName)
         {
             if (value == null)
             {
