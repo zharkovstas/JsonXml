@@ -35,7 +35,7 @@ namespace JsonXml
                 case XmlNodeType.Element:
                     if (writePropertyName)
                     {
-                        writer.WritePropertyName(value.LocalName);
+                        writer.WritePropertyName(value.Name);
                     }
 
                     if (value.Attributes.Count == 0)
@@ -72,7 +72,7 @@ namespace JsonXml
 
                     var nodesGroupedByName = value.ChildNodes
                         .Cast<XmlNode>()
-                        .GroupBy(x => x.LocalName)
+                        .GroupBy(x => x.Name)
                         .Select(x => (x.Key, Nodes: x.ToArray()));
 
                     foreach (var sameNameNodes in nodesGroupedByName)
@@ -98,7 +98,7 @@ namespace JsonXml
                     writer.WriteEndObject();
                     break;
                 case XmlNodeType.Attribute:
-                    writer.WriteString($"@{value.LocalName}", value.Value);
+                    writer.WriteString($"@{value.Name}", value.Value);
                     break;
                 case XmlNodeType.Text:
                     if (writePropertyName)
@@ -131,7 +131,7 @@ namespace JsonXml
                     writer.WriteCommentValue(value.Value);
                     break;
                 case XmlNodeType.ProcessingInstruction:
-                    writer.WriteString($"?{value.LocalName}", value.Value);
+                    writer.WriteString($"?{value.Name}", value.Value);
                     break;
                 case XmlNodeType.DocumentType:
                     var documentType = (XmlDocumentType)value;

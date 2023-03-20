@@ -26,6 +26,7 @@ public class XmlNodeConverterTests
     [TestCase("<root>false</root>")]
     [TestCase("<root><!-- Comment --></root>")]
     [TestCase(@"<root attribute=""value""/>")]
+    [TestCase(@"<root xml:lang=""en-USa""/>")]
     [TestCase(@"<root first=""1"" second=""2""/>")]
     [TestCase("<root><child/></root>")]
     [TestCase("<root><first/><second/></root>")]
