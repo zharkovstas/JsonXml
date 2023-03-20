@@ -135,7 +135,7 @@ namespace JsonXml
                     break;
                 case XmlNodeType.DocumentType:
                     var documentType = (XmlDocumentType)value;
-                    writer.WritePropertyName($"!DOCTYPE");
+                    writer.WritePropertyName("!DOCTYPE");
                     writer.WriteStartObject();
 
                     var documentTypeProperties = new (string Name, string Value)[]

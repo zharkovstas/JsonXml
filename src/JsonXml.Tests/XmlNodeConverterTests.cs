@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Xml;
+using Newtonsoft.Json;
 
 namespace JsonXml.Tests;
 
@@ -10,47 +11,37 @@ public class XmlNodeConverterTests
     [Test]
     public void Write_GivenNull_WorksLikeJsonNet()
     {
-        var expected = Newtonsoft.Json.JsonConvert.SerializeXmlNode((XmlNode?)null);
+        var expected = JsonConvert.SerializeXmlNode((XmlNode?)null);
 
         var actual = Write(null);
 
         Assert.That(actual, Is.EqualTo(expected));
     }
 
-    [TestCase("<root/>")]
-    [TestCase(@"<?xml version=""1.0"" encoding=""UTF-8""?><root/>")]
-    [TestCase("<root></root>")]
-    [TestCase("<root>Text</root>")]
-    [TestCase("<root>123</root>")]
-    [TestCase("<root>true</root>")]
-    [TestCase("<root>false</root>")]
-    [TestCase("<root><!-- Comment --></root>")]
-    [TestCase(@"<root attribute=""value""/>")]
-    [TestCase(@"<root xml:lang=""en-USa""/>")]
-    [TestCase(@"<root first=""1"" second=""2""/>")]
-    [TestCase("<root><child/></root>")]
-    [TestCase("<root><first/><second/></root>")]
-    [TestCase("<root><element/><element/></root>")]
-    [TestCase("<root><element/><!-- Comment --><element/></root>")]
-    [TestCase(@"<root attribute=""value"">Text</root>")]
-    [TestCase("<root>Text<child/></root>")]
-    [TestCase("<root>First<child/>Second</root>")]
-    [TestCase("<root><child/>Text</root>")]
-    [TestCase("<root><child/>Text<child/></root>")]
-    [TestCase(@"<root><child>First</child><child attribute=""value"">Second</child></root>")]
-    [TestCase("<root>&amp;&lt;&gt;&quot;'</root>")]
-    [TestCase("<root><?pi ?></root>")]
-    [TestCase(@"<!DOCTYPE root SYSTEM ""some.ent""><root></root>")]
-    public void Write_WorksLikeJsonNet(string xml)
+    [Test]
+    public void Write_WorksLikeJsonNet([ValueSource(nameof(GetXmls))] string xml)
     {
         var document = new XmlDocument();
         document.LoadXml(xml);
 
-        var expected = Newtonsoft.Json.JsonConvert.SerializeXmlNode(document);
+        var expected = JsonConvert.SerializeXmlNode(document);
 
         var actual = Write(document);
 
         Assert.That(actual, Is.EqualTo(expected));
+    }
+
+    public void Write_ThenRead_WorksLikeJsonNet([ValueSource(nameof(GetXmls))] string xml)
+    {
+        var document = new XmlDocument();
+        document.LoadXml(xml);
+
+        var expected = JsonConvert.DeserializeXmlNode(JsonConvert.SerializeXmlNode(document));
+
+        var actual = Read(Write(document));
+
+        Assert.That(actual, Is.Not.Null);
+        Assert.That(actual!.OuterXml, Is.EqualTo(expected!.OuterXml));
     }
 
     [Test]
@@ -61,38 +52,88 @@ public class XmlNodeConverterTests
         Assert.That(actual, Is.Null);
     }
 
-    [TestCase("{}")]
-    [TestCase(@"{""root"":null}")]
-    [TestCase(@"{""?xml"":{""@version"":""1.0"",""@encoding"":""UTF-8""},""root"":null}")]
-    [TestCase(@"{""?xml"":{""@version"":""1.0"",""@encoding"":""UTF-8""},""root"":null}")]
-    [TestCase(@"{""root"":""""}")]
-    [TestCase(@"{""root"":""Text""}")]
-    [TestCase(@"{""root"":{}}")]
-    [TestCase(@"{""root"":true}")]
-    [TestCase(@"{""root"":false}")]
-    [TestCase(@"{""root"":123}")]
-    [TestCase(@"{""root"":{}}")]
-    [TestCase(@"{/* Comment */""root"":null}")]
-    [TestCase(@"{""root"":null/* Comment */}")]
-    [TestCase(@"{""root"":{/* Comment */}}")]
-    [TestCase(@"{""root"":{""child"":null}}")]
-    [TestCase(@"{""root"":{""@attribute"":null}}")]
-    [TestCase(@"{""root"":{""@attribute"":""""}}")]
-    [TestCase(@"{""root"":{""@attribute"":""Text""}}")]
-    [TestCase(@"{""root"":{""@attribute"":true}}")]
-    [TestCase(@"{""root"":{""@attribute"":false}}")]
-    [TestCase(@"{""root"":{""@first"":1,""@second"":2}}")]
-    [TestCase(@"{""root"":{""first"":null,""second"":null}}")]
-    [TestCase(@"{""root"":{""element"":[null,null]}}")]
-    [TestCase(@"{""root"":{""element"":[null,null]/* Comment */}}")]
-    public void Read_WorksLikeJsonNet(string json)
+    [Test]
+    public void Read_WorksLikeJsonNet([ValueSource(nameof(GetJsons))] string json)
     {
-        var expected = Newtonsoft.Json.JsonConvert.DeserializeXmlNode(json);
+        var expected = JsonConvert.DeserializeXmlNode(json);
 
         var actual = Read(json);
 
         Assert.That(actual, Is.Not.Null);
         Assert.That(actual!.OuterXml, Is.EqualTo(expected!.OuterXml));
+    }
+
+    [Test]
+    public void Read_ThenWrite_WorksLikeJsonNet([ValueSource(nameof(GetJsons))] string json)
+    {
+        var expected = JsonConvert.SerializeXmlNode(JsonConvert.DeserializeXmlNode(json));
+
+        var actual = Write(Read(json));
+
+        Assert.That(actual, Is.EqualTo(expected));
+    }
+
+    private static string[] GetXmls()
+    {
+        return new[] {
+            "<root />",
+            @"<?xml version=""1.0"" encoding=""UTF-8""?><root />",
+            "<root></root>",
+            "<root>Text</root>",
+            "<root>123</root>",
+            "<root>true</root>",
+            "<root>false</root>",
+            "<root><!-- Comment --></root>",
+            @"<root attribute=""value"" />",
+            @"<root xml:lang=""en-USa"" />",
+            @"<root first=""1"" second=""2"" />",
+            "<root><child /></root>",
+            "<root><first /><second /></root>",
+            "<root><element /><element /></root>",
+            "<root><element /><!-- Comment --><element /></root>",
+            @"<root attribute=""value"">Text</root>",
+            "<root>Text<child /></root>",
+            "<root>First<child />Second</root>",
+            "<root><child />Text</root>",
+            "<root><child />Text<child /></root>",
+            @"<root><child>First</child><child attribute=""value"">Second</child></root>",
+            @"<root>&amp;&lt;&gt;""'</root>",
+            "<root><?pi ?></root>",
+            @"<!DOCTYPE root SYSTEM ""some.ent""><root></root>",
+        };
+    }
+
+    private static string[] GetJsons()
+    {
+        return new[] {
+            "{}",
+            @"{""root"":null}",
+            @"{""?xml"":{""@version"":""1.0"",""@encoding"":""UTF-8""},""root"":null}",
+            @"{""root"":""""}",
+            @"{""root"":""Text""}",
+            @"{""root"":{}}",
+            @"{""root"":true}",
+            @"{""root"":false}",
+            @"{""root"":123}",
+            @"{""root"":{}}",
+            @"{/* Comment */""root"":null}",
+            @"{""root"":null/* Comment */}",
+            @"{""root"":{/* Comment */}}",
+            @"{""root"":{""child"":null}}",
+            @"{""root"":{""#text"":""Text""}}",
+            @"{""root"":{""@attribute"":null}}",
+            @"{""root"":{""@attribute"":""""}}",
+            @"{""root"":{""@attribute"":""Text""}}",
+            @"{""root"":{""@attribute"":true}}",
+            @"{""root"":{""@attribute"":false}}",
+            @"{""root"":{""@first"":1,""@second"":2}}",
+            @"{""root"":{""first"":null,""second"":null}}",
+            @"{""root"":{""element"":[null,null]}}",
+            @"{""root"":{""element"":[null,null]/* Comment */}}",
+            @"{""root"":""&<>\""'""}",
+            @"{""root"":{""?pi"":""""}}",
+            @"{""!DOCTYPE"":{""@name"":""root"",""@system"":""some.ent""},""root"":""""}",
+        };
     }
 
     private static string Write(XmlNode? node)

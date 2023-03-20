@@ -27,12 +27,24 @@ namespace JsonXml
                 {
                     case JsonTokenType.PropertyName:
                         var propertyName = reader.GetString();
-                        if (propertyName == "?xml")
+                        switch (propertyName)
                         {
-                            ReadXmlDeclaration(ref reader, document);
-                            break;
+                            case "?xml":
+                                ReadXmlDeclaration(ref reader, document);
+                                break;
+                            case "!DOCTYPE":
+                                ReadDocumentType(ref reader, document);
+                                break;
+                            default:
+                                if (propertyName.StartsWith("?"))
+                                {
+                                    reader.Read();
+                                    document.CreateProcessingInstruction(propertyName.Substring(1), reader.GetString());
+                                    break;
+                                }
+                                ReadPropertyValue(ref reader, document, document, propertyName);
+                                break;
                         }
-                        ReadPropertyValue(ref reader, document, document, propertyName);
                         break;
                     case JsonTokenType.Comment:
                         document.AppendChild(document.CreateComment(reader.GetComment()));
@@ -81,6 +93,46 @@ namespace JsonXml
             }
         }
 
+        private static void ReadDocumentType(ref Utf8JsonReader reader, XmlDocument document)
+        {
+            string propertyName = null;
+            string name = null;
+            string publicId = null;
+            string systemId = null;
+            string internalSubset = null;
+            while (reader.Read())
+            {
+                switch (reader.TokenType)
+                {
+                    case JsonTokenType.PropertyName:
+                        propertyName = reader.GetString();
+                        break;
+                    case JsonTokenType.String:
+                        switch (propertyName)
+                        {
+                            case "@name":
+                                name = reader.GetString();
+                                break;
+                            case "@public":
+                                publicId = reader.GetString();
+                                break;
+                            case "@system":
+                                systemId = reader.GetString();
+                                break;
+                            case "@internalSubset":
+                                internalSubset = reader.GetString();
+                                break;
+                            default:
+                                break;
+                        }
+                        break;
+                    case JsonTokenType.EndObject:
+                        document.AppendChild(document.CreateDocumentType(name, publicId, systemId, internalSubset));
+                        return;
+                }
+            }
+        }
+
         private static void ReadPropertyValue(ref Utf8JsonReader reader, XmlDocument document, XmlNode currentNode, string propertyName)
         {
             bool isInsideArray = false;
@@ -93,9 +145,29 @@ namespace JsonXml
                     case JsonTokenType.Number:
                     case JsonTokenType.True:
                     case JsonTokenType.False:
-                        var elementWithSingleValue = document.CreateElement(propertyName);
-                        ReadPrimitiveValue(ref reader, document, elementWithSingleValue);
-                        currentNode.AppendChild(elementWithSingleValue);
+                        switch (propertyName)
+                        {
+                            case "#text":
+                                ReadPrimitiveValue(ref reader, document, currentNode);
+                                break;
+                            default:
+                                if (propertyName.StartsWith("@"))
+                                {
+                                    var attribute = document.CreateAttribute(propertyName.Substring(1));
+                                    ReadPrimitiveValue(ref reader, document, attribute);
+                                    currentNode.Attributes.Append(attribute);
+                                    break;
+                                }
+                                if (propertyName.StartsWith("?"))
+                                {
+                                    currentNode.AppendChild(document.CreateProcessingInstruction(propertyName.Substring(1), reader.GetString()));
+                                    break;
+                                }
+                                var elementWithSingleValue = document.CreateElement(propertyName);
+                                ReadPrimitiveValue(ref reader, document, elementWithSingleValue);
+                                currentNode.AppendChild(elementWithSingleValue);
+                                break;
+                        }
                         if (!isInsideArray)
                         {
                             return;
@@ -131,18 +203,7 @@ namespace JsonXml
                 switch (reader.TokenType)
                 {
                     case JsonTokenType.PropertyName:
-                        var propertyName = reader.GetString();
-                        if (propertyName.StartsWith("@"))
-                        {
-                            var attribute = document.CreateAttribute(propertyName.Substring(1));
-                            reader.Read();
-                            ReadPrimitiveValue(ref reader, document, attribute);
-                            currentNode.Attributes.Append(attribute);
-                        }
-                        else
-                        {
-                            ReadPropertyValue(ref reader, document, currentNode, propertyName);
-                        }
+                        ReadPropertyValue(ref reader, document, currentNode, reader.GetString());
                         break;
                     case JsonTokenType.Comment:
                         currentNode.AppendChild(document.CreateComment(reader.GetComment()));
@@ -154,6 +215,8 @@ namespace JsonXml
                 }
             }
         }
+
+
 
         private static void ReadPrimitiveValue(ref Utf8JsonReader reader, XmlDocument document, XmlNode currentNode)
         {
