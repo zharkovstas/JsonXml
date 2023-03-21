@@ -31,6 +31,7 @@ public class XmlNodeConverterTests
         Assert.That(actual, Is.EqualTo(expected));
     }
 
+    [Test]
     public void Write_ThenRead_WorksLikeJsonNet([ValueSource(nameof(GetXmls))] string xml)
     {
         var document = new XmlDocument();
@@ -100,6 +101,9 @@ public class XmlNodeConverterTests
             @"<root>&amp;&lt;&gt;""'</root>",
             "<root><?pi ?></root>",
             @"<!DOCTYPE root SYSTEM ""some.ent""><root></root>",
+            "<root><![CDATA[test]]></root>",
+            @"<root xmlns:custom=""http://www.example.com/custom""><custom:child /></root>",
+            @"<root xmlns:custom=""http://www.example.com/custom"" custom:attribute=""value"" />",
         };
     }
 
@@ -133,6 +137,9 @@ public class XmlNodeConverterTests
             @"{""root"":""&<>\""'""}",
             @"{""root"":{""?pi"":""""}}",
             @"{""!DOCTYPE"":{""@name"":""root"",""@system"":""some.ent""},""root"":""""}",
+            @"{""root"":{""#cdata-section"":""Text""}}",
+            @"{""root"":{""@xmlns:custom"":""http://www.example.com/custom"",""custom:child"":null}}",
+            @"{""root"":{""@xmlns:custom"":""http://www.example.com/custom"",""@custom:attribute"":null}}",
         };
     }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Xml;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -21,6 +22,8 @@ namespace JsonXml
 
             var document = new XmlDocument();
 
+            var namespaceUrisByPrefix = new Dictionary<string, string>();
+
             while (reader.Read())
             {
                 switch (reader.TokenType)
@@ -42,7 +45,7 @@ namespace JsonXml
                                     document.CreateProcessingInstruction(propertyName.Substring(1), reader.GetString());
                                     break;
                                 }
-                                ReadPropertyValue(ref reader, document, document, propertyName);
+                                ReadPropertyValue(ref reader, document, document, propertyName, namespaceUrisByPrefix);
                                 break;
                         }
                         break;
@@ -133,7 +136,12 @@ namespace JsonXml
             }
         }
 
-        private static void ReadPropertyValue(ref Utf8JsonReader reader, XmlDocument document, XmlNode currentNode, string propertyName)
+        private static void ReadPropertyValue(
+            ref Utf8JsonReader reader,
+            XmlDocument document,
+            XmlNode currentNode,
+            string propertyName,
+            Dictionary<string, string> namespaceUrisByPrefix)
         {
             bool isInsideArray = false;
             while (reader.Read())
@@ -148,14 +156,35 @@ namespace JsonXml
                         switch (propertyName)
                         {
                             case "#text":
-                                ReadPrimitiveValue(ref reader, document, currentNode);
+                                var text = ReadPrimitiveValue(ref reader);
+                                if (text != null)
+                                {
+                                    currentNode.AppendChild(document.CreateTextNode(text));
+                                }
+                                break;
+                            case "#cdata-section":
+                                var cData = ReadPrimitiveValue(ref reader);
+                                if (cData != null)
+                                {
+                                    currentNode.AppendChild(document.CreateCDataSection(cData));
+                                }
                                 break;
                             default:
                                 if (propertyName.StartsWith("@"))
                                 {
-                                    var attribute = document.CreateAttribute(propertyName.Substring(1));
-                                    ReadPrimitiveValue(ref reader, document, attribute);
+                                    var attributeName = propertyName.Substring(1);
+                                    var attribute = CreateAttribute(propertyName.Substring(1), document, namespaceUrisByPrefix);
+                                    var attributeValue = ReadPrimitiveValue(ref reader);
+                                    if (attributeValue != null)
+                                    {
+                                        attribute.AppendChild(document.CreateTextNode(attributeValue));
+                                    }
                                     currentNode.Attributes.Append(attribute);
+
+                                    if (propertyName.StartsWith("@xmlns:"))
+                                    {
+                                        namespaceUrisByPrefix[propertyName.Substring(7)] = attributeValue;
+                                    }
                                     break;
                                 }
                                 if (propertyName.StartsWith("?"))
@@ -163,8 +192,12 @@ namespace JsonXml
                                     currentNode.AppendChild(document.CreateProcessingInstruction(propertyName.Substring(1), reader.GetString()));
                                     break;
                                 }
-                                var elementWithSingleValue = document.CreateElement(propertyName);
-                                ReadPrimitiveValue(ref reader, document, elementWithSingleValue);
+                                var elementWithSingleValue = CreateElement(propertyName, document, namespaceUrisByPrefix);
+                                var elementValue = ReadPrimitiveValue(ref reader);
+                                if (elementValue != null)
+                                {
+                                    elementWithSingleValue.AppendChild(document.CreateTextNode(elementValue));
+                                }
                                 currentNode.AppendChild(elementWithSingleValue);
                                 break;
                         }
@@ -178,7 +211,7 @@ namespace JsonXml
                         break;
                     case JsonTokenType.StartObject:
                         var element = document.CreateElement(propertyName);
-                        ReadObject(ref reader, document, element);
+                        ReadObject(ref reader, document, element, namespaceUrisByPrefix);
                         currentNode.AppendChild(element);
                         if (!isInsideArray)
                         {
@@ -196,14 +229,18 @@ namespace JsonXml
             }
         }
 
-        private static void ReadObject(ref Utf8JsonReader reader, XmlDocument document, XmlNode currentNode)
+        private static void ReadObject(
+            ref Utf8JsonReader reader,
+            XmlDocument document,
+            XmlNode currentNode,
+            Dictionary<string, string> namespaceUrisByPrefix)
         {
             while (reader.Read())
             {
                 switch (reader.TokenType)
                 {
                     case JsonTokenType.PropertyName:
-                        ReadPropertyValue(ref reader, document, currentNode, reader.GetString());
+                        ReadPropertyValue(ref reader, document, currentNode, reader.GetString(), namespaceUrisByPrefix);
                         break;
                     case JsonTokenType.Comment:
                         currentNode.AppendChild(document.CreateComment(reader.GetComment()));
@@ -216,29 +253,61 @@ namespace JsonXml
             }
         }
 
-
-
-        private static void ReadPrimitiveValue(ref Utf8JsonReader reader, XmlDocument document, XmlNode currentNode)
+        private static string ReadPrimitiveValue(ref Utf8JsonReader reader)
         {
             switch (reader.TokenType)
             {
                 case JsonTokenType.Null:
-                    return;
+                    return null;
                 case JsonTokenType.String:
-                    currentNode.AppendChild(document.CreateTextNode(reader.GetString()));
-                    return;
+                    return reader.GetString();
                 case JsonTokenType.Number:
-                    currentNode.AppendChild(document.CreateTextNode(reader.GetInt64().ToString()));
-                    return;
+                    return reader.GetInt64().ToString();
                 case JsonTokenType.True:
-                    currentNode.AppendChild(document.CreateTextNode("true"));
-                    return;
+                    return "true";
                 case JsonTokenType.False:
-                    currentNode.AppendChild(document.CreateTextNode("false"));
-                    return;
+                    return "false";
                 default:
-                    return;
+                    return null;
             }
+        }
+
+        private static XmlAttribute CreateAttribute(
+            string name,
+            XmlDocument document,
+            Dictionary<string, string> namespaceUrisByPrefix)
+        {
+            var colonIndex = name.IndexOf(':');
+            if (colonIndex > 0 && colonIndex < name.Length - 1)
+            {
+                var prefix = name.Substring(0, colonIndex);
+                if (namespaceUrisByPrefix.TryGetValue(prefix, out var namespaceUri))
+                {
+                    return document.CreateAttribute(prefix, name.Substring(colonIndex + 1), namespaceUri);
+                }
+            }
+            return document.CreateAttribute(name);
+        }
+
+        private static XmlElement CreateElement(
+            string name,
+            XmlDocument document,
+            Dictionary<string, string> namespaceUrisByPrefix)
+        {
+            var colonIndex = name.IndexOf(':');
+            if (colonIndex > 0 && colonIndex < name.Length - 1)
+            {
+                var prefix = name.Substring(0, colonIndex);
+                if (namespaceUrisByPrefix.TryGetValue(prefix, out var namespaceUri))
+                {
+                    return document.CreateElement(prefix, name.Substring(colonIndex + 1), namespaceUri);
+                }
+                else
+                {
+                    return document.CreateElement(prefix, name.Substring(colonIndex + 1), $"http://unknown-prefixes/{prefix}");
+                }
+            }
+            return document.CreateElement(name);
         }
     }
 }

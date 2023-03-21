@@ -154,6 +154,9 @@ namespace JsonXml
 
                     writer.WriteEndObject();
                     break;
+                case XmlNodeType.CDATA:
+                    writer.WriteString($"#cdata-section", value.Value);
+                    break;
                 default:
                     break;
             }
