@@ -210,8 +210,17 @@ namespace JsonXml
                         currentNode.AppendChild(document.CreateComment(reader.GetComment()));
                         break;
                     case JsonTokenType.StartObject:
-                        var element = document.CreateElement(propertyName);
-                        ReadObject(ref reader, document, element, namespaceUrisByPrefix);
+                        var fakeElement = document.CreateElement("fake");
+                        ReadObject(ref reader, document, fakeElement, namespaceUrisByPrefix);
+                        var element = CreateElement(propertyName, document, namespaceUrisByPrefix);
+                        while (fakeElement.ChildNodes.Count > 0)
+                        {
+                            element.AppendChild(fakeElement.ChildNodes[0]);
+                        }
+                        while (fakeElement.Attributes.Count > 0)
+                        {
+                            element.Attributes.Append(fakeElement.Attributes[0]);
+                        }
                         currentNode.AppendChild(element);
                         if (!isInsideArray)
                         {

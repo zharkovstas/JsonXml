@@ -104,6 +104,7 @@ public class XmlNodeConverterTests
             "<root><![CDATA[test]]></root>",
             @"<root xmlns:custom=""http://www.example.com/custom""><custom:child /></root>",
             @"<root xmlns:custom=""http://www.example.com/custom"" custom:attribute=""value"" />",
+            @"<xs:schema xmlns:xs=""http://www.w3.org/2001/XMLSchema""></xs:schema>"
         };
     }
 
@@ -140,6 +141,7 @@ public class XmlNodeConverterTests
             @"{""root"":{""#cdata-section"":""Text""}}",
             @"{""root"":{""@xmlns:custom"":""http://www.example.com/custom"",""custom:child"":null}}",
             @"{""root"":{""@xmlns:custom"":""http://www.example.com/custom"",""@custom:attribute"":null}}",
+            @"{""xs:schema"":{""@xmlns:xs"":""http://www.w3.org/2001/XMLSchema""}}"
         };
     }
 
