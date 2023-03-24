@@ -100,11 +100,14 @@ public class XmlNodeConverterTests
             @"<root><child>First</child><child attribute=""value"">Second</child></root>",
             @"<root>&amp;&lt;&gt;""'</root>",
             "<root><?pi ?></root>",
+            "<root><?pi test?></root>",
             @"<!DOCTYPE root SYSTEM ""some.ent""><root></root>",
             "<root><![CDATA[test]]></root>",
             @"<root xmlns:custom=""http://www.example.com/custom""><custom:child /></root>",
             @"<root xmlns:custom=""http://www.example.com/custom"" custom:attribute=""value"" />",
-            @"<xs:schema xmlns:xs=""http://www.w3.org/2001/XMLSchema""></xs:schema>"
+            @"<xs:schema xmlns:xs=""http://www.w3.org/2001/XMLSchema""></xs:schema>",
+            @"<root xml:space=""preserve""></root>",
+            @"<root xml:space=""preserve""> </root>"
         };
     }
 
@@ -120,6 +123,7 @@ public class XmlNodeConverterTests
             @"{""root"":true}",
             @"{""root"":false}",
             @"{""root"":123}",
+            @"{""root"":123.4}",
             @"{""root"":{}}",
             @"{/* Comment */""root"":null}",
             @"{""root"":null/* Comment */}",
@@ -137,11 +141,14 @@ public class XmlNodeConverterTests
             @"{""root"":{""element"":[null,null]/* Comment */}}",
             @"{""root"":""&<>\""'""}",
             @"{""root"":{""?pi"":""""}}",
+            @"{""root"":{""?pi"":""test""}}",
             @"{""!DOCTYPE"":{""@name"":""root"",""@system"":""some.ent""},""root"":""""}",
             @"{""root"":{""#cdata-section"":""Text""}}",
             @"{""root"":{""@xmlns:custom"":""http://www.example.com/custom"",""custom:child"":null}}",
             @"{""root"":{""@xmlns:custom"":""http://www.example.com/custom"",""@custom:attribute"":null}}",
-            @"{""xs:schema"":{""@xmlns:xs"":""http://www.w3.org/2001/XMLSchema""}}"
+            @"{""xs:schema"":{""@xmlns:xs"":""http://www.w3.org/2001/XMLSchema""}}",
+            @"{""root"":{""@xml:space"":""preserve""}}",
+            @"{""root"":{""@xml:space"":""preserve"",""#significant-whitespace"":"" ""}}"
         };
     }
 

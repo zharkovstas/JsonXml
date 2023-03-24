@@ -8,7 +8,7 @@ namespace JsonXml
 {
     public partial class XmlNodeConverter : JsonConverter<XmlNode>
     {
-        public override XmlNode Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override XmlNode? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             if (reader.TokenType == JsonTokenType.Null)
             {
@@ -22,14 +22,18 @@ namespace JsonXml
 
             var document = new XmlDocument();
 
-            var namespaceUrisByPrefix = new Dictionary<string, string>();
+            var namespaceUrisByPrefix = new Dictionary<string, string>
+            {
+                ["xml"] = "http://www.w3.org/XML/1998/namespace",
+                ["xmlns"] = "http://www.w3.org/2000/xmlns/"
+            };
 
             while (reader.Read())
             {
                 switch (reader.TokenType)
                 {
                     case JsonTokenType.PropertyName:
-                        var propertyName = reader.GetString();
+                        var propertyName = reader.GetString()!;
                         switch (propertyName)
                         {
                             case "?xml":
@@ -42,7 +46,7 @@ namespace JsonXml
                                 if (propertyName.StartsWith("?"))
                                 {
                                     reader.Read();
-                                    document.CreateProcessingInstruction(propertyName.Substring(1), reader.GetString());
+                                    document.CreateProcessingInstruction(propertyName.Substring(1), reader.GetString() ?? string.Empty);
                                     break;
                                 }
                                 ReadPropertyValue(ref reader, document, document, propertyName, namespaceUrisByPrefix);
@@ -62,10 +66,10 @@ namespace JsonXml
 
         private static void ReadXmlDeclaration(ref Utf8JsonReader reader, XmlDocument document)
         {
-            string propertyName = null;
-            string version = null;
-            string encoding = null;
-            string standalone = null;
+            string? propertyName = null;
+            string? version = null;
+            string? encoding = null;
+            string? standalone = null;
             while (reader.Read())
             {
                 switch (reader.TokenType)
@@ -90,7 +94,10 @@ namespace JsonXml
                         }
                         break;
                     case JsonTokenType.EndObject:
-                        document.AppendChild(document.CreateXmlDeclaration(version, encoding, standalone));
+                        if (version != null)
+                        {
+                            document.AppendChild(document.CreateXmlDeclaration(version, encoding, standalone));
+                        }
                         return;
                 }
             }
@@ -98,11 +105,11 @@ namespace JsonXml
 
         private static void ReadDocumentType(ref Utf8JsonReader reader, XmlDocument document)
         {
-            string propertyName = null;
-            string name = null;
-            string publicId = null;
-            string systemId = null;
-            string internalSubset = null;
+            string? propertyName = null;
+            string? name = null;
+            string? publicId = null;
+            string? systemId = null;
+            string? internalSubset = null;
             while (reader.Read())
             {
                 switch (reader.TokenType)
@@ -130,7 +137,10 @@ namespace JsonXml
                         }
                         break;
                     case JsonTokenType.EndObject:
-                        document.AppendChild(document.CreateDocumentType(name, publicId, systemId, internalSubset));
+                        if (name != null)
+                        {
+                            document.AppendChild(document.CreateDocumentType(name, publicId, systemId, internalSubset));
+                        }
                         return;
                 }
             }
@@ -162,6 +172,13 @@ namespace JsonXml
                                     currentNode.AppendChild(document.CreateTextNode(text));
                                 }
                                 break;
+                            case "#significant-whitespace":
+                                var significantWhitespace = ReadPrimitiveValue(ref reader);
+                                if (significantWhitespace != null)
+                                {
+                                    currentNode.AppendChild(document.CreateSignificantWhitespace(significantWhitespace));
+                                }
+                                break;
                             case "#cdata-section":
                                 var cData = ReadPrimitiveValue(ref reader);
                                 if (cData != null)
@@ -178,18 +195,22 @@ namespace JsonXml
                                     if (attributeValue != null)
                                     {
                                         attribute.AppendChild(document.CreateTextNode(attributeValue));
+                                        if (propertyName.StartsWith("@xmlns:"))
+                                        {
+                                            namespaceUrisByPrefix[propertyName.Substring("@xmlns:".Length)] = attributeValue;
+                                        }
                                     }
-                                    currentNode.Attributes.Append(attribute);
 
-                                    if (propertyName.StartsWith("@xmlns:"))
+                                    if (currentNode.Attributes != null)
                                     {
-                                        namespaceUrisByPrefix[propertyName.Substring(7)] = attributeValue;
+                                        currentNode.Attributes.Append(attribute);
                                     }
+
                                     break;
                                 }
                                 if (propertyName.StartsWith("?"))
                                 {
-                                    currentNode.AppendChild(document.CreateProcessingInstruction(propertyName.Substring(1), reader.GetString()));
+                                    currentNode.AppendChild(document.CreateProcessingInstruction(propertyName.Substring(1), reader.GetString() ?? string.Empty));
                                     break;
                                 }
                                 var elementWithSingleValue = CreateElement(propertyName, document, namespaceUrisByPrefix);
@@ -215,7 +236,12 @@ namespace JsonXml
                         var element = CreateElement(propertyName, document, namespaceUrisByPrefix);
                         while (fakeElement.ChildNodes.Count > 0)
                         {
-                            element.AppendChild(fakeElement.ChildNodes[0]);
+                            var newChild = fakeElement.ChildNodes[0];
+                            if (newChild == null)
+                            {
+                                break;
+                            }
+                            element.AppendChild(newChild);
                         }
                         while (fakeElement.Attributes.Count > 0)
                         {
@@ -249,7 +275,7 @@ namespace JsonXml
                 switch (reader.TokenType)
                 {
                     case JsonTokenType.PropertyName:
-                        ReadPropertyValue(ref reader, document, currentNode, reader.GetString(), namespaceUrisByPrefix);
+                        ReadPropertyValue(ref reader, document, currentNode, reader.GetString()!, namespaceUrisByPrefix);
                         break;
                     case JsonTokenType.Comment:
                         currentNode.AppendChild(document.CreateComment(reader.GetComment()));
@@ -262,23 +288,19 @@ namespace JsonXml
             }
         }
 
-        private static string ReadPrimitiveValue(ref Utf8JsonReader reader)
+        private static string? ReadPrimitiveValue(ref Utf8JsonReader reader)
         {
-            switch (reader.TokenType)
+            return reader.TokenType switch
             {
-                case JsonTokenType.Null:
-                    return null;
-                case JsonTokenType.String:
-                    return reader.GetString();
-                case JsonTokenType.Number:
-                    return reader.GetInt64().ToString();
-                case JsonTokenType.True:
-                    return "true";
-                case JsonTokenType.False:
-                    return "false";
-                default:
-                    return null;
-            }
+                JsonTokenType.Null => null,
+                JsonTokenType.String => reader.GetString(),
+                JsonTokenType.Number => reader.TryGetInt64(out var l)
+                        ? l.ToString()
+                        : reader.GetDouble().ToString(),
+                JsonTokenType.True => "true",
+                JsonTokenType.False => "false",
+                _ => null
+            };
         }
 
         private static XmlAttribute CreateAttribute(
@@ -287,15 +309,21 @@ namespace JsonXml
             Dictionary<string, string> namespaceUrisByPrefix)
         {
             var colonIndex = name.IndexOf(':');
-            if (colonIndex > 0 && colonIndex < name.Length - 1)
+
+            if (colonIndex < 1 || colonIndex == name.Length - 1)
             {
-                var prefix = name.Substring(0, colonIndex);
-                if (namespaceUrisByPrefix.TryGetValue(prefix, out var namespaceUri))
-                {
-                    return document.CreateAttribute(prefix, name.Substring(colonIndex + 1), namespaceUri);
-                }
+                return document.CreateAttribute(name);
             }
-            return document.CreateAttribute(name);
+
+            var prefix = name.Substring(0, colonIndex);
+            var localName = name.Substring(colonIndex + 1);
+
+            if (namespaceUrisByPrefix.TryGetValue(prefix, out var namespaceUri))
+            {
+                return document.CreateAttribute(prefix, localName, namespaceUri);
+            }
+
+            return document.CreateAttribute(localName);
         }
 
         private static XmlElement CreateElement(
@@ -304,19 +332,21 @@ namespace JsonXml
             Dictionary<string, string> namespaceUrisByPrefix)
         {
             var colonIndex = name.IndexOf(':');
-            if (colonIndex > 0 && colonIndex < name.Length - 1)
+
+            if (colonIndex < 1 || colonIndex == name.Length - 1)
             {
-                var prefix = name.Substring(0, colonIndex);
-                if (namespaceUrisByPrefix.TryGetValue(prefix, out var namespaceUri))
-                {
-                    return document.CreateElement(prefix, name.Substring(colonIndex + 1), namespaceUri);
-                }
-                else
-                {
-                    return document.CreateElement(prefix, name.Substring(colonIndex + 1), $"http://unknown-prefixes/{prefix}");
-                }
+                return document.CreateElement(name);
             }
-            return document.CreateElement(name);
+
+            var prefix = name.Substring(0, colonIndex);
+            var localName = name.Substring(colonIndex + 1);
+
+            if (namespaceUrisByPrefix.TryGetValue(prefix, out var namespaceUri))
+            {
+                return document.CreateElement(prefix, localName, namespaceUri);
+            }
+
+            return document.CreateElement(localName);
         }
     }
 }

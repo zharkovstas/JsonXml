@@ -7,12 +7,12 @@ namespace JsonXml
 {
     public partial class XmlNodeConverter : JsonConverter<XmlNode>
     {
-        public override void Write(Utf8JsonWriter writer, XmlNode value, JsonSerializerOptions options)
+        public override void Write(Utf8JsonWriter writer, XmlNode? value, JsonSerializerOptions options)
         {
             WriteRecursively(writer, value, writePropertyName: true);
         }
 
-        private static void WriteRecursively(Utf8JsonWriter writer, XmlNode value, bool writePropertyName)
+        private static void WriteRecursively(Utf8JsonWriter writer, XmlNode? value, bool writePropertyName)
         {
             if (value == null)
             {
@@ -38,7 +38,7 @@ namespace JsonXml
                         writer.WritePropertyName(value.Name);
                     }
 
-                    if (value.Attributes.Count == 0)
+                    if (value.Attributes!.Count == 0)
                     {
                         if (!value.HasChildNodes)
                         {
@@ -56,10 +56,14 @@ namespace JsonXml
                             break;
                         }
 
-                        if (value.ChildNodes.Count == 1 && value.ChildNodes[0].NodeType == XmlNodeType.Text)
+                        if (value.ChildNodes.Count == 1)
                         {
-                            writer.WriteStringValue(value.ChildNodes[0].Value);
-                            break;
+                            var singleChildNode = value.ChildNodes[0]!;
+                            if (singleChildNode.NodeType == XmlNodeType.Text)
+                            {
+                                writer.WriteStringValue(singleChildNode.Value);
+                                break;
+                            }
                         }
                     }
 
@@ -112,23 +116,28 @@ namespace JsonXml
                     writer.WritePropertyName("?xml");
                     writer.WriteStartObject();
 
-                    var declarationProperties = new (string Name, string Value)[]
+                    if (!string.IsNullOrEmpty(declaration.Version))
                     {
-                        ("@version", declaration.Version),
-                        ("@encoding", declaration.Encoding),
-                        ("@standalone", declaration.Standalone),
+                        writer.WriteString("@version", declaration.Version!);
                     }
-                    .Where(x => !string.IsNullOrEmpty(x.Value));
 
-                    foreach (var property in declarationProperties)
+                    if (!string.IsNullOrEmpty(declaration.Encoding))
                     {
-                        writer.WriteString(property.Name, property.Value);
+                        writer.WriteString("@encoding", declaration.Encoding!);
+                    }
+
+                    if (!string.IsNullOrEmpty(declaration.Standalone))
+                    {
+                        writer.WriteString("@standalone", declaration.Standalone!);
                     }
 
                     writer.WriteEndObject();
                     break;
                 case XmlNodeType.Comment:
-                    writer.WriteCommentValue(value.Value);
+                    if (value.Value != null)
+                    {
+                        writer.WriteCommentValue(value.Value);
+                    }
                     break;
                 case XmlNodeType.ProcessingInstruction:
                     writer.WriteString($"?{value.Name}", value.Value);
@@ -138,24 +147,33 @@ namespace JsonXml
                     writer.WritePropertyName("!DOCTYPE");
                     writer.WriteStartObject();
 
-                    var documentTypeProperties = new (string Name, string Value)[]
+                    if (!string.IsNullOrEmpty(documentType.Name))
                     {
-                        ("@name", documentType.Name),
-                        ("@public", documentType.PublicId),
-                        ("@system", documentType.SystemId),
-                        ("@internalSubset", documentType.InternalSubset),
+                        writer.WriteString("@name", documentType.Name!);
                     }
-                    .Where(x => !string.IsNullOrEmpty(x.Value));
 
-                    foreach (var property in documentTypeProperties)
+                    if (!string.IsNullOrEmpty(documentType.PublicId))
                     {
-                        writer.WriteString(property.Name, property.Value);
+                        writer.WriteString("@public", documentType.PublicId!);
+                    }
+
+                    if (!string.IsNullOrEmpty(documentType.SystemId))
+                    {
+                        writer.WriteString("@system", documentType.SystemId!);
+                    }
+
+                    if (!string.IsNullOrEmpty(documentType.InternalSubset))
+                    {
+                        writer.WriteString("@internalSubset", documentType.InternalSubset!);
                     }
 
                     writer.WriteEndObject();
                     break;
                 case XmlNodeType.CDATA:
                     writer.WriteString($"#cdata-section", value.Value);
+                    break;
+                case XmlNodeType.SignificantWhitespace:
+                    writer.WriteString($"#significant-whitespace", value.Value);
                     break;
                 default:
                     break;
