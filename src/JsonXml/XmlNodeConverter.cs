@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Xml;
 using System.Text.Json.Serialization;
+using System.Xml;
 
 namespace JsonXml
 {

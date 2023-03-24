@@ -1,7 +1,8 @@
-﻿using System.Linq;
-using System.Xml;
+﻿using System;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Xml;
 
 namespace JsonXml
 {
@@ -9,6 +10,11 @@ namespace JsonXml
     {
         public override void Write(Utf8JsonWriter writer, XmlNode? value, JsonSerializerOptions options)
         {
+            if (writer == null)
+            {
+                throw new ArgumentNullException(nameof(writer));
+            }
+
             WriteRecursively(writer, value, writePropertyName: true);
         }
 

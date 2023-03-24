@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Xml;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Xml;
 
 namespace JsonXml
 {
@@ -43,7 +44,7 @@ namespace JsonXml
                                 ReadDocumentType(ref reader, document);
                                 break;
                             default:
-                                if (propertyName.StartsWith("?"))
+                                if (propertyName.StartsWith("?", StringComparison.Ordinal))
                                 {
                                     reader.Read();
                                     document.CreateProcessingInstruction(propertyName.Substring(1), reader.GetString() ?? string.Empty);
@@ -187,7 +188,7 @@ namespace JsonXml
                                 }
                                 break;
                             default:
-                                if (propertyName.StartsWith("@"))
+                                if (propertyName.StartsWith("@", StringComparison.Ordinal))
                                 {
                                     var attributeName = propertyName.Substring(1);
                                     var attribute = CreateAttribute(propertyName.Substring(1), document, namespaceUrisByPrefix);
@@ -195,7 +196,7 @@ namespace JsonXml
                                     if (attributeValue != null)
                                     {
                                         attribute.AppendChild(document.CreateTextNode(attributeValue));
-                                        if (propertyName.StartsWith("@xmlns:"))
+                                        if (propertyName.StartsWith("@xmlns:", StringComparison.OrdinalIgnoreCase))
                                         {
                                             namespaceUrisByPrefix[propertyName.Substring("@xmlns:".Length)] = attributeValue;
                                         }
@@ -208,7 +209,7 @@ namespace JsonXml
 
                                     break;
                                 }
-                                if (propertyName.StartsWith("?"))
+                                if (propertyName.StartsWith("?", StringComparison.Ordinal))
                                 {
                                     currentNode.AppendChild(document.CreateProcessingInstruction(propertyName.Substring(1), reader.GetString() ?? string.Empty));
                                     break;
@@ -295,8 +296,8 @@ namespace JsonXml
                 JsonTokenType.Null => null,
                 JsonTokenType.String => reader.GetString(),
                 JsonTokenType.Number => reader.TryGetInt64(out var l)
-                        ? l.ToString()
-                        : reader.GetDouble().ToString(),
+                        ? l.ToString(CultureInfo.InvariantCulture)
+                        : reader.GetDouble().ToString(CultureInfo.InvariantCulture),
                 JsonTokenType.True => "true",
                 JsonTokenType.False => "false",
                 _ => null
@@ -308,8 +309,11 @@ namespace JsonXml
             XmlDocument document,
             Dictionary<string, string> namespaceUrisByPrefix)
         {
+#if NETSTANDARD2_0
             var colonIndex = name.IndexOf(':');
-
+#else
+            var colonIndex = name.IndexOf(':', StringComparison.Ordinal);
+#endif
             if (colonIndex < 1 || colonIndex == name.Length - 1)
             {
                 return document.CreateAttribute(name);
@@ -331,8 +335,11 @@ namespace JsonXml
             XmlDocument document,
             Dictionary<string, string> namespaceUrisByPrefix)
         {
+#if NETSTANDARD2_0
             var colonIndex = name.IndexOf(':');
-
+#else
+            var colonIndex = name.IndexOf(':', StringComparison.Ordinal);
+#endif
             if (colonIndex < 1 || colonIndex == name.Length - 1)
             {
                 return document.CreateElement(name);
