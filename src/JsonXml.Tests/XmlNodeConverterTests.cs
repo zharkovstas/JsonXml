@@ -102,13 +102,16 @@ public class XmlNodeConverterTests
             @"<root>&amp;&lt;&gt;""'</root>",
             "<root><?pi ?></root>",
             "<root><?pi test?></root>",
+            "<root><?pi first?><?pi second?></root>",
             @"<!DOCTYPE root SYSTEM ""some.ent""><root></root>",
             "<root><![CDATA[test]]></root>",
+            "<root><![CDATA[first]]><![CDATA[second]]></root>",
             @"<root xmlns:custom=""http://www.example.com/custom""><custom:child /></root>",
             @"<root xmlns:custom=""http://www.example.com/custom"" custom:attribute=""value"" />",
             @"<xs:schema xmlns:xs=""http://www.w3.org/2001/XMLSchema""></xs:schema>",
             @"<root xml:space=""preserve""></root>",
-            @"<root xml:space=""preserve""> </root>"
+            @"<root xml:space=""preserve""> </root>",
+            @"<root xml:space=""preserve""> <child/> </root>"
         };
     }
 
@@ -143,13 +146,16 @@ public class XmlNodeConverterTests
             @"{""root"":""&<>\""'""}",
             @"{""root"":{""?pi"":""""}}",
             @"{""root"":{""?pi"":""test""}}",
+            @"{""root"":{""?pi"":[""first"",""second""]}}",
             @"{""!DOCTYPE"":{""@name"":""root"",""@system"":""some.ent""},""root"":""""}",
             @"{""root"":{""#cdata-section"":""Text""}}",
+            @"{""root"":{""#cdata-section"":[""first"",""second""]}}",
             @"{""root"":{""@xmlns:custom"":""http://www.example.com/custom"",""custom:child"":null}}",
             @"{""root"":{""@xmlns:custom"":""http://www.example.com/custom"",""@custom:attribute"":null}}",
             @"{""xs:schema"":{""@xmlns:xs"":""http://www.w3.org/2001/XMLSchema""}}",
             @"{""root"":{""@xml:space"":""preserve""}}",
-            @"{""root"":{""@xml:space"":""preserve"",""#significant-whitespace"":"" ""}}"
+            @"{""root"":{""@xml:space"":""preserve"",""#significant-whitespace"":"" ""}}",
+            @"{""root"":{""@xml:space"":""preserve"",""#significant-whitespace"":["" "","" ""],""child"":null}}"
         };
     }
 

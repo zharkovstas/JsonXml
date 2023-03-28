@@ -38,7 +38,6 @@ Console.WriteLine(JsonSerializer.Deserialize<XmlDocument>(json, options)!.OuterX
 
 ## TODO
 
-* Fix handling multiple processing instructions
 * Write a separate set of tests for cases when behavior differs from `Newtonsoft.Json`
 * Fix handling multiple comments (`Newtonsoft.Json` behaves poorly)
 * Implement handling entity references (`Newtonsoft.Json` fails)
