@@ -44,12 +44,6 @@ namespace JsonXml
                                 ReadDocumentType(ref reader, document);
                                 break;
                             default:
-                                if (propertyName.StartsWith("?", StringComparison.Ordinal))
-                                {
-                                    reader.Read();
-                                    document.CreateProcessingInstruction(propertyName.Substring(1), reader.GetString() ?? string.Empty);
-                                    break;
-                                }
                                 ReadPropertyValue(ref reader, document, document, propertyName, namespaceUrisByPrefix);
                                 break;
                         }

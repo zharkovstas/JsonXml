@@ -1,8 +1,8 @@
 # JsonXml
 
-A .NET library to convert between XML and JSON depending on nothing but `System.Text.Json`.
+A .NET library for serializing XML to JSON and deserializing it back, depending only on `System.Text.Json`.
 
-Is meant to be a drop-in replacement for `Newtonsoft.Json.Converters.XmlNodeConverter`.
+This library is designed to be a drop-in replacement for `Newtonsoft.Json.Converters.XmlNodeConverter`.
 
 ## Usage
 
@@ -38,7 +38,5 @@ Console.WriteLine(JsonSerializer.Deserialize<XmlDocument>(json, options)!.OuterX
 
 ## TODO
 
-* Write a separate set of tests for cases when behavior differs from `Newtonsoft.Json`
-* Fix handling multiple comments (`Newtonsoft.Json` behaves poorly)
 * Implement handling entity references (`Newtonsoft.Json` fails)
 * Make a NuGet package

@@ -29,30 +29,28 @@ namespace JsonXml
             switch (node.NodeType)
             {
                 case XmlNodeType.Document:
-                    writer.WriteStartObject();
-
-                    for (var i = 0; i < node.ChildNodes.Count; i++)
-                    {
-                        WritePropertyName(writer, node.ChildNodes[i]);
-                        WriteNode(writer, node.ChildNodes[i]);
-                    }
-
-                    writer.WriteEndObject();
-                    break;
                 case XmlNodeType.Element:
-                    if (node.Attributes!.Count == 0)
+                    if (node.Attributes == null || node.Attributes.Count == 0)
                     {
                         if (!node.HasChildNodes)
                         {
-                            var element = (XmlElement)node;
-
-                            if (element.IsEmpty)
+                            if (node is XmlElement element)
                             {
-                                writer.WriteNullValue();
+                                if (element.IsEmpty)
+                                {
+                                    writer.WriteNullValue();
+                                }
+                                else
+                                {
+                                    writer.WriteStringValue(string.Empty);
+                                }
+                                break;
                             }
-                            else
+
+                            if (node is XmlDocument)
                             {
-                                writer.WriteStringValue(string.Empty);
+                                writer.WriteStartObject();
+                                writer.WriteEndObject();
                             }
 
                             break;
@@ -71,26 +69,30 @@ namespace JsonXml
 
                     writer.WriteStartObject();
 
-                    for (var i = 0; i < node.Attributes.Count; i++)
+                    if (node.Attributes != null)
                     {
-                        WritePropertyName(writer, node.Attributes[i]);
-                        WriteNode(writer, node.Attributes[i]);
+                        for (var i = 0; i < node.Attributes.Count; i++)
+                        {
+                            WritePropertyName(writer, node.Attributes[i]);
+                            WriteNode(writer, node.Attributes[i]);
+                        }
                     }
 
                     var nodesGroupedByName = node.ChildNodes
                         .Cast<XmlNode>()
-                        .GroupBy(x => x.Name)
+                        .GroupBy(x => GetPropertyName(x))
                         .Select(x => (x.Key, Nodes: x.ToArray()));
 
                     foreach (var sameNameNodes in nodesGroupedByName)
                     {
-                        WritePropertyName(writer, sameNameNodes.Nodes[0]);
                         if (sameNameNodes.Nodes.Length == 1)
                         {
+                            WritePropertyName(writer, sameNameNodes.Nodes[0]);
                             WriteNode(writer, sameNameNodes.Nodes[0]);
                         }
                         else
                         {
+                            writer.WritePropertyName(sameNameNodes.Key);
                             writer.WriteStartArray();
 
                             foreach (var sameNameNode in sameNameNodes.Nodes)
@@ -101,7 +103,6 @@ namespace JsonXml
                             writer.WriteEndArray();
                         }
                     }
-
                     writer.WriteEndObject();
                     break;
                 case XmlNodeType.Attribute:
@@ -173,31 +174,37 @@ namespace JsonXml
             }
         }
 
-        private static void WritePropertyName(Utf8JsonWriter writer, XmlNode? value)
+        private static void WritePropertyName(Utf8JsonWriter writer, XmlNode? node)
         {
-            if (value == null)
+            if (node == null)
             {
                 return;
             }
 
-            switch (value.NodeType)
+            switch (node.NodeType)
             {
-                case XmlNodeType.Attribute:
-                    writer.WritePropertyName($"@{value.Name}");
-                    return;
-                case XmlNodeType.XmlDeclaration:
-                case XmlNodeType.ProcessingInstruction:
-                    writer.WritePropertyName($"?{value.Name}");
-                    return;
-                case XmlNodeType.DocumentType:
-                    writer.WritePropertyName("!DOCTYPE");
-                    return;
                 case XmlNodeType.Document:
                 case XmlNodeType.Comment:
                     return;
                 default:
-                    writer.WritePropertyName(value.Name);
+                    writer.WritePropertyName(GetPropertyName(node));
                     return;
+            }
+        }
+
+        private static string GetPropertyName(XmlNode node)
+        {
+            switch (node.NodeType)
+            {
+                case XmlNodeType.Attribute:
+                    return $"@{node.Name}";
+                case XmlNodeType.XmlDeclaration:
+                case XmlNodeType.ProcessingInstruction:
+                    return $"?{node.Name}";
+                case XmlNodeType.DocumentType:
+                    return "!DOCTYPE";
+                default:
+                    return node.Name;
             }
         }
     }

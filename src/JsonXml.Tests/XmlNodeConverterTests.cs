@@ -32,6 +32,28 @@ public class XmlNodeConverterTests
         Assert.That(actual, Is.EqualTo(expected));
     }
 
+    [TestCase(
+        "<root><!-- First --><!-- Second --></root>",
+        @"{""root"":{""#comment"":[]}}",
+        ExpectedResult = @"{""root"":{""#comment"":[/* First *//* Second */]}}")
+    ]
+    [TestCase(
+        @"<root xmlns:a=""http://a.com/"" xmlns=""http://a.com/""><child a:attr=""1"" attr=""2""/></root>",
+        @"{""root"":{""@xmlns:a"":""http://a.com/"",""@xmlns"":""http://a.com/"",""child"":{""@attr"":""1"",""@attr"":""2""}}}",
+        ExpectedResult = @"{""root"":{""@xmlns:a"":""http://a.com/"",""@xmlns"":""http://a.com/"",""child"":{""@a:attr"":""1"",""@attr"":""2""}}}")
+    ]
+    public string Write_GivenJsonNetBehavesPoorly_WorksBetter(string xml, string jsonNetExpectedJson)
+    {
+        var document = new XmlDocument();
+        document.LoadXml(xml);
+
+        var jsonNetActualJson = JsonConvert.SerializeXmlNode(document);
+
+        Assert.That(jsonNetActualJson, Is.EqualTo(jsonNetExpectedJson).NoClip);
+
+        return Write(document);
+    }
+
     [Test]
     public void Write_ThenRead_WorksLikeJsonNet([ValueSource(nameof(GetXmls))] string xml)
     {
@@ -101,6 +123,7 @@ public class XmlNodeConverterTests
             @"<root><child>First</child><child attribute=""value"">Second</child></root>",
             @"<root>&amp;&lt;&gt;""'</root>",
             "<root><?pi ?></root>",
+            "<?pi ?><root></root>",
             "<root><?pi test?></root>",
             "<root><?pi first?><?pi second?></root>",
             @"<!DOCTYPE root SYSTEM ""some.ent""><root></root>",
@@ -145,8 +168,10 @@ public class XmlNodeConverterTests
             @"{""root"":{""element"":[null,null]/* Comment */}}",
             @"{""root"":""&<>\""'""}",
             @"{""root"":{""?pi"":""""}}",
+            @"{""?pi"":"""",""root"":{}}",
             @"{""root"":{""?pi"":""test""}}",
             @"{""root"":{""?pi"":[""first"",""second""]}}",
+            @"{""?pi"":[""first"",""second""],""root"":null}",
             @"{""!DOCTYPE"":{""@name"":""root"",""@system"":""some.ent""},""root"":""""}",
             @"{""root"":{""#cdata-section"":""Text""}}",
             @"{""root"":{""#cdata-section"":[""first"",""second""]}}",
