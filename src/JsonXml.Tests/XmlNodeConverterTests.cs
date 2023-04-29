@@ -5,96 +5,117 @@ using System.Xml;
 
 using Newtonsoft.Json;
 
+using That;
+
 namespace JsonXml.Tests;
 
 public class XmlNodeConverterTests
 {
-    [Test]
     public void Write_GivenNull_WorksLikeJsonNet()
     {
-        var expected = JsonConvert.SerializeXmlNode((XmlNode?)null);
+        var expected = JsonConvert.SerializeXmlNode(null);
 
         var actual = Write(null);
 
-        Assert.That(actual, Is.EqualTo(expected));
+        Assert.That(actual == expected, $"actual; Expected: {expected}; But was: {actual}");
     }
 
-    [Test]
-    public void Write_WorksLikeJsonNet([ValueSource(nameof(GetXmls))] string xml)
+    public void Write_WorksLikeJsonNet()
     {
-        var document = new XmlDocument();
-        document.LoadXml(xml);
+        var xmls = GetXmls();
 
-        var expected = JsonConvert.SerializeXmlNode(document);
+        foreach (var xml in xmls)
+        {
+            var document = new XmlDocument();
+            document.LoadXml(xml);
 
-        var actual = Write(document);
+            var expected = JsonConvert.SerializeXmlNode(document);
 
-        Assert.That(actual, Is.EqualTo(expected));
+            var actual = Write(document);
+
+            Assert.That(actual == expected, $"actual; Expected: {expected}; But was: {actual}");
+        }
     }
 
-    [TestCase(
-        "<root><!-- First --><!-- Second --></root>",
-        @"{""root"":{""#comment"":[]}}",
-        ExpectedResult = @"{""root"":{""#comment"":[/* First *//* Second */]}}")
-    ]
-    [TestCase(
-        @"<root xmlns:a=""http://a.com/"" xmlns=""http://a.com/""><child a:attr=""1"" attr=""2""/></root>",
-        @"{""root"":{""@xmlns:a"":""http://a.com/"",""@xmlns"":""http://a.com/"",""child"":{""@attr"":""1"",""@attr"":""2""}}}",
-        ExpectedResult = @"{""root"":{""@xmlns:a"":""http://a.com/"",""@xmlns"":""http://a.com/"",""child"":{""@a:attr"":""1"",""@attr"":""2""}}}")
-    ]
-    public string Write_GivenJsonNetBehavesPoorly_WorksBetter(string xml, string jsonNetExpectedJson)
+    public void Write_GivenJsonNetBehavesPoorly_WorksBetter()
     {
-        var document = new XmlDocument();
-        document.LoadXml(xml);
+        var cases = new (string Xml, string JsonNetExpectedJson, string Expected)[]
+        {
+            (
+                "<root><!-- First --><!-- Second --></root>",
+                @"{""root"":{""#comment"":[]}}",
+                @"{""root"":{""#comment"":[/* First *//* Second */]}}"),
+            (
+                @"<root xmlns:a=""http://a.com/"" xmlns=""http://a.com/""><child a:attr=""1"" attr=""2""/></root>",
+                @"{""root"":{""@xmlns:a"":""http://a.com/"",""@xmlns"":""http://a.com/"",""child"":{""@attr"":""1"",""@attr"":""2""}}}",
+                @"{""root"":{""@xmlns:a"":""http://a.com/"",""@xmlns"":""http://a.com/"",""child"":{""@a:attr"":""1"",""@attr"":""2""}}}"),
+        };
 
-        var jsonNetActualJson = JsonConvert.SerializeXmlNode(document);
+        foreach (var (xml, jsonNetExpectedJson, expected) in cases)
+        {
+            var document = new XmlDocument();
+            document.LoadXml(xml);
 
-        Assert.That(jsonNetActualJson, Is.EqualTo(jsonNetExpectedJson).NoClip);
+            var jsonNetActualJson = JsonConvert.SerializeXmlNode(document);
+            var actual = Write(document);
 
-        return Write(document);
+            Assert.That(jsonNetActualJson == jsonNetExpectedJson, $"jsonNetActualJson; Expected: {jsonNetExpectedJson}; But was: {jsonNetActualJson}");
+            Assert.That(actual == expected, $"actual; Expected: {expected}; But was: {actual}");
+        }
     }
 
-    [Test]
-    public void Write_ThenRead_WorksLikeJsonNet([ValueSource(nameof(GetXmls))] string xml)
+    public void Write_ThenRead_WorksLikeJsonNet()
     {
-        var document = new XmlDocument();
-        document.LoadXml(xml);
+        var xmls = GetXmls();
 
-        var expected = JsonConvert.DeserializeXmlNode(JsonConvert.SerializeXmlNode(document));
+        foreach (var xml in xmls)
+        {
+            var document = new XmlDocument();
+            document.LoadXml(xml);
 
-        var actual = Read(Write(document));
+            var expected = JsonConvert.DeserializeXmlNode(JsonConvert.SerializeXmlNode(document));
 
-        Assert.That(actual, Is.Not.Null);
-        Assert.That(actual!.OuterXml, Is.EqualTo(expected!.OuterXml));
+            var actual = Read(Write(document));
+
+            Assert.That(actual is not null, $"actual; Expected: not null; But was: {actual}");
+            Assert.That(actual!.OuterXml == expected!.OuterXml, $"actual!.OuterXml; Expected: {expected!.OuterXml}; But was: {actual!.OuterXml}");
+        }
     }
 
-    [Test]
     public void Read_GivenNull_ReturnsNull()
     {
         var actual = Read("null");
 
-        Assert.That(actual, Is.Null);
+        Assert.That(actual is null, $"actual; Expected: null; But was: {actual}");
     }
 
-    [Test]
-    public void Read_WorksLikeJsonNet([ValueSource(nameof(GetJsons))] string json)
+    public void Read_WorksLikeJsonNet()
     {
-        var expected = JsonConvert.DeserializeXmlNode(json);
+        var jsons = GetJsons();
 
-        var actual = Read(json);
+        foreach (var json in jsons)
+        {
+            var expected = JsonConvert.DeserializeXmlNode(json);
 
-        Assert.That(actual, Is.Not.Null);
-        Assert.That(actual!.OuterXml, Is.EqualTo(expected!.OuterXml));
+            var actual = Read(json);
+
+            Assert.That(actual is not null, $"actual; Expected: not null; But was: {actual}");
+            Assert.That(actual!.OuterXml == expected!.OuterXml, $"actual!.OuterXml; Expected: {expected!.OuterXml}; But was: {actual!.OuterXml}");
+        }
     }
 
-    [Test]
-    public void Read_ThenWrite_WorksLikeJsonNet([ValueSource(nameof(GetJsons))] string json)
+    public void Read_ThenWrite_WorksLikeJsonNet()
     {
-        var expected = JsonConvert.SerializeXmlNode(JsonConvert.DeserializeXmlNode(json));
+        var jsons = GetJsons();
 
-        var actual = Write(Read(json));
+        foreach (var json in jsons)
+        {
+            var expected = JsonConvert.SerializeXmlNode(JsonConvert.DeserializeXmlNode(json));
 
-        Assert.That(actual, Is.EqualTo(expected));
+            var actual = Write(Read(json));
+
+            Assert.That(actual == expected, $"actual; Expected: {expected}; But was: {actual}");
+        }
     }
 
     private static string[] GetXmls()
